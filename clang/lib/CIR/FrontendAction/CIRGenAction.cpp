@@ -25,11 +25,13 @@
 #include "clang/CIR/CIRGenerator.h"
 #include "clang/CIR/CIRToCIRPasses.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/FrontendAction/CIRGenConsumer.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "clang/CIR/Passes.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/MultiplexConsumer.h"
@@ -60,19 +62,6 @@
 using namespace cir;
 using namespace clang;
 
-static std::string sanitizePassOptions(llvm::StringRef o) {
-  if (o.empty())
-    return "";
-  std::string opts{o};
-  // MLIR pass options are space separated, but we use ';' in clang since
-  // space aren't well supported, switch it back.
-  for (unsigned i = 0, e = opts.size(); i < e; ++i)
-    if (opts[i] == ';')
-      opts[i] = ' ';
-  // If arguments are surrounded with '"', trim them off
-  return llvm::StringRef(opts).trim('"').str();
-}
-
 namespace cir {
 
 static BackendAction
@@ -102,24 +91,14 @@ static std::unique_ptr<llvm::Module> lowerFromCIRToLLVMIR(
     return lowerFromCIRToMLIRToLLVMIR(mlirMod, std::move(mlirCtx), llvmCtx);
 }
 
-class CIRGenConsumer : public clang::ASTConsumer {
-
-  virtual void anchor();
-
+class CIRGenConsumer : public CIRGenConsumerBase {
   CIRGenAction::OutputType action;
 
-  DiagnosticsEngine &diagnosticsEngine;
   const HeaderSearchOptions &headerSearchOptions;
-  const CodeGenOptions &codeGenOptions;
   const TargetOptions &targetOptions;
   const LangOptions &langOptions;
-  const FrontendOptions &feOptions;
 
   std::unique_ptr<raw_pwrite_stream> outputStream;
-
-  ASTContext *astContext{nullptr};
-  IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS;
-  std::unique_ptr<CIRGenerator> gen;
 
 public:
   CIRGenConsumer(CIRGenAction::OutputType action,
@@ -131,40 +110,51 @@ public:
                  const LangOptions &langOptions,
                  const FrontendOptions &feOptions,
                  std::unique_ptr<raw_pwrite_stream> os)
-      : action(action), diagnosticsEngine(diagnosticsEngine),
-        headerSearchOptions(headerSearchOptions),
-        codeGenOptions(codeGenOptions), targetOptions(targetOptions),
-        langOptions(langOptions), feOptions(feOptions),
-        outputStream(std::move(os)), FS(VFS),
-        gen(std::make_unique<CIRGenerator>(diagnosticsEngine, std::move(VFS),
-                                           codeGenOptions)) {}
-
-  void Initialize(ASTContext &ctx) override {
-    assert(!astContext && "initialized multiple times");
-
-    astContext = &ctx;
-
-    gen->Initialize(ctx);
+      : CIRGenConsumerBase(diagnosticsEngine, VFS, feOptions, codeGenOptions),
+        action(action), headerSearchOptions(headerSearchOptions),
+        targetOptions(targetOptions), langOptions(langOptions),
+        outputStream(std::move(os)) {
+    gen = std::make_unique<CIRGenerator>(diagnosticsEngine, FS, codeGenOptions);
   }
 
-  bool HandleTopLevelDecl(DeclGroupRef D) override {
-    PrettyStackTraceDecl CrashInfo(*D.begin(), SourceLocation(),
-                                   astContext->getSourceManager(),
-                                   "LLVM IR generation of declaration");
-    gen->HandleTopLevelDecl(D);
-    return true;
-  }
+  void setupCIRPipelineAndExecute(ASTContext &C,
+                                  mlir::MLIRContext *mlirCtx) override {
+    auto mlirMod = gen->getModule();
 
-  void HandleCXXStaticMemberVarInstantiation(clang::VarDecl *VD) override {
-    gen->HandleCXXStaticMemberVarInstantiation(VD);
-  }
+    // Sanitize passes options. MLIR uses spaces between pass options
+    // and since that's hard to fly in clang, we currently use ';'.
+    std::string lifetimeOpts, idiomRecognizerOpts, libOptOpts;
+    if (feOptions.ClangIRLifetimeCheck)
+      lifetimeOpts = sanitizePassOptions(feOptions.ClangIRLifetimeCheckOpts);
+    if (feOptions.ClangIRIdiomRecognizer)
+      idiomRecognizerOpts =
+          sanitizePassOptions(feOptions.ClangIRIdiomRecognizerOpts);
+    if (feOptions.ClangIRLibOpt)
+      libOptOpts = sanitizePassOptions(feOptions.ClangIRLibOptOpts);
 
-  void HandleInlineFunctionDefinition(FunctionDecl *D) override {
-    gen->HandleInlineFunctionDefinition(D);
-  }
+    bool enableCCLowering = feOptions.ClangIRCallConvLowering &&
+                            action != CIRGenAction::OutputType::EmitCIR;
 
-  void HandleInterestingDecl(DeclGroupRef D) override {
-    llvm_unreachable("NYI");
+    // Setup and run CIR pipeline.
+    std::string passOptParsingFailure;
+    if (runCIRToCIRPasses(
+            mlirMod, mlirCtx, C, !feOptions.ClangIRDisableCIRVerifier,
+            feOptions.ClangIRLifetimeCheck, lifetimeOpts,
+            feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
+            feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
+            codeGenOptions.OptimizationLevel > 0,
+            action == CIRGenAction::OutputType::EmitCIRFlat,
+            action == CIRGenAction::OutputType::EmitMLIR, enableCCLowering,
+            feOptions.ClangIREnableMem2Reg)
+            .failed()) {
+      if (!passOptParsingFailure.empty())
+        diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
+            << feOptions.ClangIRLifetimeCheckOpts;
+      else
+        llvm::report_fatal_error("CIR codegen: MLIR pass manager fails "
+                                 "when running CIR passes!");
+      return;
+    }
   }
 
   void HandleTranslationUnit(ASTContext &C) override {
@@ -185,76 +175,7 @@ public:
     auto mlirMod = gen->getModule();
     auto mlirCtx = gen->takeContext();
 
-    auto setupCIRPipelineAndExecute = [&] {
-      // Sanitize passes options. MLIR uses spaces between pass options
-      // and since that's hard to fly in clang, we currently use ';'.
-      std::string lifetimeOpts, idiomRecognizerOpts, libOptOpts;
-      if (feOptions.ClangIRLifetimeCheck)
-        lifetimeOpts = sanitizePassOptions(feOptions.ClangIRLifetimeCheckOpts);
-      if (feOptions.ClangIRIdiomRecognizer)
-        idiomRecognizerOpts =
-            sanitizePassOptions(feOptions.ClangIRIdiomRecognizerOpts);
-      if (feOptions.ClangIRLibOpt)
-        libOptOpts = sanitizePassOptions(feOptions.ClangIRLibOptOpts);
-
-      bool enableCCLowering = feOptions.ClangIRCallConvLowering &&
-                              action != CIRGenAction::OutputType::EmitCIR;
-
-      // Setup and run CIR pipeline.
-      std::string passOptParsingFailure;
-      if (runCIRToCIRPasses(
-              mlirMod, mlirCtx.get(), C, !feOptions.ClangIRDisableCIRVerifier,
-              feOptions.ClangIRLifetimeCheck, lifetimeOpts,
-              feOptions.ClangIRIdiomRecognizer, idiomRecognizerOpts,
-              feOptions.ClangIRLibOpt, libOptOpts, passOptParsingFailure,
-              codeGenOptions.OptimizationLevel > 0,
-              action == CIRGenAction::OutputType::EmitCIRFlat,
-              action == CIRGenAction::OutputType::EmitMLIR, enableCCLowering,
-              feOptions.ClangIREnableMem2Reg)
-              .failed()) {
-        if (!passOptParsingFailure.empty())
-          diagnosticsEngine.Report(diag::err_drv_cir_pass_opt_parsing)
-              << feOptions.ClangIRLifetimeCheckOpts;
-        else
-          llvm::report_fatal_error("CIR codegen: MLIR pass manager fails "
-                                   "when running CIR passes!");
-        return;
-      }
-    };
-
-    if (!feOptions.ClangIRDisablePasses) {
-      // Handle source manager properly given that lifetime analysis
-      // might emit warnings and remarks.
-      auto &clangSourceMgr = C.getSourceManager();
-      FileID MainFileID = clangSourceMgr.getMainFileID();
-
-      std::unique_ptr<llvm::MemoryBuffer> FileBuf =
-          llvm::MemoryBuffer::getMemBuffer(
-              clangSourceMgr.getBufferOrFake(MainFileID));
-
-      llvm::SourceMgr mlirSourceMgr;
-      mlirSourceMgr.AddNewSourceBuffer(std::move(FileBuf), llvm::SMLoc());
-
-      if (feOptions.ClangIRVerifyDiags) {
-        mlir::SourceMgrDiagnosticVerifierHandler sourceMgrHandler(
-            mlirSourceMgr, mlirCtx.get());
-        mlirCtx->printOpOnDiagnostic(false);
-        setupCIRPipelineAndExecute();
-
-        // Verify the diagnostic handler to make sure that each of the
-        // diagnostics matched.
-        if (sourceMgrHandler.verify().failed()) {
-          // FIXME: we fail ungracefully, there's probably a better way
-          // to communicate non-zero return so tests can actually fail.
-          llvm::sys::RunInterruptHandlers();
-          exit(1);
-        }
-      } else {
-        mlir::SourceMgrDiagnosticHandler sourceMgrHandler(mlirSourceMgr,
-                                                          mlirCtx.get());
-        setupCIRPipelineAndExecute();
-      }
-    }
+    runCIRPasses(C, mlirCtx.get());
 
     switch (action) {
     case CIRGenAction::OutputType::EmitCIR:
@@ -300,38 +221,12 @@ public:
       break;
     }
     case CIRGenAction::OutputType::None:
+    case CIRGenAction::OutputType::NoneForSafeCXX:
       break;
     }
   }
-
-  void HandleTagDeclDefinition(TagDecl *D) override {
-    PrettyStackTraceDecl CrashInfo(D, SourceLocation(),
-                                   astContext->getSourceManager(),
-                                   "CIR generation of declaration");
-    gen->HandleTagDeclDefinition(D);
-  }
-
-  void HandleTagDeclRequiredDefinition(const TagDecl *D) override {
-    gen->HandleTagDeclRequiredDefinition(D);
-  }
-
-  void CompleteTentativeDefinition(VarDecl *D) override {
-    gen->CompleteTentativeDefinition(D);
-  }
-
-  void CompleteExternalDeclaration(DeclaratorDecl *D) override {
-    llvm_unreachable("NYI");
-  }
-
-  void AssignInheritanceModel(CXXRecordDecl *RD) override {
-    llvm_unreachable("NYI");
-  }
-
-  void HandleVTable(CXXRecordDecl *RD) override { gen->HandleVTable(RD); }
 };
 } // namespace cir
-
-void CIRGenConsumer::anchor() {}
 
 CIRGenAction::CIRGenAction(OutputType act, mlir::MLIRContext *_MLIRContext)
     : mlirContext(_MLIRContext ? _MLIRContext : new mlir::MLIRContext),
@@ -367,6 +262,7 @@ getOutputStream(CompilerInstance &ci, StringRef inFile,
   case CIRGenAction::OutputType::EmitObj:
     return ci.createDefaultOutputFile(true, inFile, "o");
   case CIRGenAction::OutputType::None:
+  case CIRGenAction::OutputType::NoneForSafeCXX:
     return nullptr;
   }
 

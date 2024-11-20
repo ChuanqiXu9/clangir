@@ -16,6 +16,7 @@
 #include "clang/Basic/LangStandard.h"
 #include "clang/Basic/Sarif.h"
 #include "clang/Basic/Stack.h"
+#include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -166,6 +167,13 @@ FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
   std::unique_ptr<ASTConsumer> Consumer = CreateASTConsumer(CI, InFile);
   if (!Consumer)
     return nullptr;
+
+  {
+    std::vector<std::unique_ptr<ASTConsumer>> Consumers;
+    Consumers.push_back(std::move(Consumer));
+    Consumers.push_back(CreateSafeCXXConsumer(CI));
+    Consumer = std::make_unique<MultiplexConsumer>(std::move(Consumers));
+  }
 
   // Validate -add-plugin args.
   bool FoundAllPlugins = true;

@@ -92,6 +92,28 @@ mlir::LogicalResult runCIRToCIRPasses(
   return pm.run(theModule);
 }
 
+mlir::LogicalResult
+runSafeCXXPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
+                 clang::ASTContext &astCtx, llvm::StringRef lifetimeOpts,
+                 llvm::StringRef idiomRecognizerOpts, bool enableVerifier,
+                 std::string &passOptParsingFailure) {
+  llvm::TimeTraceScope scope("Safe C++ Passes");
+
+  mlir::PassManager pm(mlirCtx);
+  pm.addPass(mlir::createCIRCanonicalizePass());
+
+  pm.addPass(mlir::createDeprecatedCallCheckPass(astCtx));
+
+  pm.addPass(mlir::createBorrowCheckPass(astCtx));
+
+  // FIXME: once CIRCodenAction fixes emission other than CIR we
+  // need to run this right before dialect emission.
+  pm.addPass(mlir::createDropASTPass());
+  pm.enableVerifier(enableVerifier);
+  (void)mlir::applyPassManagerCLOptions(pm);
+  return pm.run(theModule);
+}
+
 } // namespace cir
 
 namespace mlir {

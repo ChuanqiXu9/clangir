@@ -43,6 +43,12 @@ std::unique_ptr<Pass> createGotoSolverPass();
 /// Create a pass to lower ABI-independent function definitions/calls.
 std::unique_ptr<Pass> createCallConvLoweringPass();
 
+std::unique_ptr<Pass> createDeprecatedCallCheckPass();
+std::unique_ptr<Pass> createDeprecatedCallCheckPass(clang::ASTContext &astCtx);
+
+std::unique_ptr<Pass> createBorrowCheckPass();
+std::unique_ptr<Pass> createBorrowCheckPass(clang::ASTContext &astCtx);
+
 void populateCIRPreLoweringPasses(mlir::OpPassManager &pm, bool useCCLowering);
 
 //===----------------------------------------------------------------------===//

@@ -270,6 +270,21 @@ static bool endsWithReturn(const Decl *F) {
   return false;
 }
 
+bool CIRGenFunction::isConstOrRefergConst(clang::QualType Ty) {
+  if (Ty.isConstQualified())
+    return true;
+
+  auto *RT = dyn_cast_if_present<ReferenceType>(Ty.getTypePtrOrNull());
+  if (RT)
+    return isConstOrRefergConst(RT->getPointeeType());
+
+  auto *PT = dyn_cast_if_present<PointerType>(Ty.getTypePtrOrNull());
+  if (PT)
+    return isConstOrRefergConst(PT->getPointeeType());
+
+  return false;
+}
+
 void CIRGenFunction::emitAndUpdateRetAlloca(QualType ty, mlir::Location loc,
                                             CharUnits alignment) {
 
@@ -292,6 +307,11 @@ void CIRGenFunction::emitAndUpdateRetAlloca(QualType ty, mlir::Location loc,
     auto addr = emitAlloca("__retval", ty, loc, alignment);
     FnRetAlloca = addr;
     ReturnValue = Address(addr, alignment);
+
+    if (isConstOrRefergConst(ty))
+      cast<AllocaOp>(addr.getDefiningOp())
+          .setConstOrReferencingConstAttr(
+              mlir::UnitAttr::get(&getMLIRContext()));
 
     // Tell the epilog emitter to autorelease the result. We do this now so
     // that various specialized functions can suppress it during their IR -
@@ -316,6 +336,10 @@ mlir::LogicalResult CIRGenFunction::declare(const Decl *var, QualType ty,
   if (ty->isReferenceType() || ty.isConstQualified())
     allocaOp.setConstantAttr(mlir::UnitAttr::get(&getMLIRContext()));
 
+  if (isConstOrRefergConst(ty))
+    allocaOp.setConstOrReferencingConstAttr(
+        mlir::UnitAttr::get(&getMLIRContext()));
+
   symbolTable.insert(var, addr);
   return mlir::success();
 }
@@ -335,6 +359,10 @@ mlir::LogicalResult CIRGenFunction::declare(Address addr, const Decl *var,
     allocaOp.setInitAttr(mlir::UnitAttr::get(&getMLIRContext()));
   if (ty->isReferenceType() || ty.isConstQualified())
     allocaOp.setConstantAttr(mlir::UnitAttr::get(&getMLIRContext()));
+
+  if (isConstOrRefergConst(ty))
+    allocaOp.setConstOrReferencingConstAttr(
+        mlir::UnitAttr::get(&getMLIRContext()));
 
   symbolTable.insert(var, addrVal);
   return mlir::success();

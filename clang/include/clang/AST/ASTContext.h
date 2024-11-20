@@ -26,6 +26,7 @@
 #include "clang/AST/TemplateName.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/PartialDiagnostic.h"
+#include "clang/Basic/SafeCXXState.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
@@ -625,6 +626,9 @@ private:
 
   /// The associated SourceManager object.
   SourceManager &SourceMgr;
+
+  /// The information about safe C++ state.
+  SafeCXXState SafeCXXStateInfo;
 
   /// The language options used to create the AST associated with
   ///  this ASTContext object.
@@ -3552,6 +3556,11 @@ public:
                                StringRef MangledName);
 
   StringRef getCUIDHash() const;
+
+  void setSafeCXXState(SafeCXXState &&State) {
+    SafeCXXStateInfo = std::move(State);
+  }
+  const SafeCXXState &getSafeCXXState() const { return SafeCXXStateInfo; }
 
 private:
   /// All OMPTraitInfo objects live in this collection, one per

@@ -265,6 +265,8 @@ public:
                          mlir::OpBuilder::InsertPoint ip,
                          mlir::Value arraySize = nullptr);
 
+  bool isConstOrRefergConst(clang::QualType Ty);
+
 private:
   void emitAndUpdateRetAlloca(clang::QualType ty, mlir::Location loc,
                               clang::CharUnits alignment);

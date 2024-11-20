@@ -8526,3 +8526,28 @@ Declares that a function potentially allocates heap memory, and prevents any pot
 of ``nonallocating`` by the compiler.
   }];
 }
+
+def SafeCXXNoBorrowToRetDoc : Documentation {
+  let Category = DocCatDecl;
+  let Heading = "Safe C++";
+  let Content = [{
+    To be done
+  }];
+}
+
+def SafeCXXThisNoBorrowToRetDoc : Documentation {
+  let Category = DocCatDecl;
+  let Heading = "Safe C++";
+  let Content = [{
+    To be done
+  }];
+}
+
+def SafeCXXDeprecatedDoc : Documentation {
+  let Category = DocCatDecl;
+  let Heading = "Safe C++";
+  let Content = [{
+    To be done
+  }];
+}
+

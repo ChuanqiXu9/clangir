@@ -4838,3 +4838,28 @@ def ClspvLibclcBuiltin: InheritableAttr {
   let Documentation = [ClspvLibclcBuiltinDoc];
   let SimpleHandler = 1;
 }
+
+def SafeCXXNoBorrowToRet : DeclOrTypeAttr {
+  let Spellings = [Clang<"NoBorrowToRet", 0>];
+  let Subjects = SubjectList<[ParmVar, ImplicitObjectParameter, Function], ErrorDiag>;
+  let LangOpts = [CPlusPlus];
+  let Documentation = [SafeCXXNoBorrowToRetDoc];
+  let SimpleHandler = 1;
+}
+
+def SafeCXXThisNoBorrowToRet : DeclOrTypeAttr {
+  let Spellings = [Clang<"ThisNoBorrowToRet", 0>];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let LangOpts = [CPlusPlus];
+  let Documentation = [SafeCXXThisNoBorrowToRetDoc];
+  let SimpleHandler = 1;
+}
+
+def SafeCXXDeprecated : DeclOrTypeAttr {
+  let Spellings = [Clang<"SafeCXXDeprecated", 0>];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let LangOpts = [CPlusPlus];
+  let Documentation = [SafeCXXDeprecatedDoc];
+  let SimpleHandler = 1;
+}
+

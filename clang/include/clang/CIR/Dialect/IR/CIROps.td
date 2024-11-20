@@ -496,6 +496,7 @@ def AllocaOp : CIR_Op<"alloca", [
     StrAttr:$name,
     UnitAttr:$init,
     UnitAttr:$constant,
+    UnitAttr:$constOrReferencingConst,
     ConfinedAttr<OptionalAttr<I64Attr>, [IntMinValue<0>]>:$alignment,
     OptionalAttr<ArrayAttr>:$annotations,
     OptionalAttr<ASTVarDeclInterface>:$ast
@@ -535,9 +536,11 @@ def AllocaOp : CIR_Op<"alloca", [
     `[` $name
        (`,` `init` $init^)?
        (`,` `const` $constant^)?
+       
     `]`
     ($annotations^)?
     (`ast` $ast^)? attr-dict
+    (`const_or_ref_const` $constOrReferencingConst^)?
   }];
 
   let hasVerifier = 0;

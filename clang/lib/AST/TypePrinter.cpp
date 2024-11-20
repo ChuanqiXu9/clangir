@@ -2062,6 +2062,15 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
   case attr::ArmMveStrictPolymorphism:
     OS << "__clang_arm_mve_strict_polymorphism";
     break;
+  case attr::SafeCXXDeprecated:
+    OS << "safe_cxx_deprecated";
+    break;
+  case attr::SafeCXXNoBorrowToRet:
+    OS << "safe_cxx_no_borrow_to_ret";
+    break;
+  case attr::SafeCXXThisNoBorrowToRet:
+    OS << "safe_cxx_this_no_borrow_to_ret";
+    break;
   }
   OS << "))";
 }

@@ -9,6 +9,9 @@ set(LLVM_LINK_COMPONENTS
   TargetParser
   )
 
+include_directories(${LLVM_MAIN_SRC_DIR}/../mlir/include)
+include_directories(${CMAKE_BINARY_DIR}/tools/mlir/include)
+
 add_clang_library(clangFrontend
   ASTConsumers.cpp
   ASTMerge.cpp
@@ -34,6 +37,7 @@ add_clang_library(clangFrontend
   PrintPreprocessedOutput.cpp
   SARIFDiagnostic.cpp
   SARIFDiagnosticPrinter.cpp
+  SafeCXXASTConsumer.cpp
   SerializedDiagnosticPrinter.cpp
   SerializedDiagnosticReader.cpp
   TestModuleFileExtension.cpp
@@ -51,10 +55,12 @@ add_clang_library(clangFrontend
   clangAPINotes
   clangAST
   clangBasic
+  clangCIR
   clangDriver
   clangEdit
   clangLex
   clangParse
   clangSema
   clangSerialization
+  MLIRIR
   )

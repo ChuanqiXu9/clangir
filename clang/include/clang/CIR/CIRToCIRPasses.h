@@ -37,6 +37,12 @@ mlir::LogicalResult runCIRToCIRPasses(
     bool enableCIRSimplify, bool flattenCIR, bool emitMLIR,
     bool enableCallConvLowering, bool enableMem2reg);
 
+mlir::LogicalResult
+runSafeCXXPasses(mlir::ModuleOp theModule, mlir::MLIRContext *mlirCtx,
+                 clang::ASTContext &astCtx, llvm::StringRef lifetimeOpts,
+                 llvm::StringRef idiomRecognizerOpts, bool enableVerifier,
+                 std::string &passOptParsingFailure);
+
 } // namespace cir
 
 #endif // CLANG_CIR_CIRTOCIRPASSES_H_

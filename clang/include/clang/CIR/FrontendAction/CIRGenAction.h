@@ -38,7 +38,8 @@ public:
     EmitBC,
     EmitMLIR,
     EmitObj,
-    None
+    None,
+    NoneForSafeCXX,
   };
 
 private:

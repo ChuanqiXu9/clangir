@@ -23,9 +23,10 @@
 #include "clang/Basic/DiagnosticInstallAPI.h"
 #include "clang/Basic/DiagnosticLex.h"
 #include "clang/Basic/DiagnosticParse.h"
+#include "clang/Basic/DiagnosticRefactoring.h"
+#include "clang/Basic/DiagnosticSafeCXX.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/DiagnosticSerialization.h"
-#include "clang/Basic/DiagnosticRefactoring.h"
 
 namespace clang {
 template <size_t SizeOfStr, typename FieldType>

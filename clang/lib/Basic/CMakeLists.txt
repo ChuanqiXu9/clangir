@@ -82,6 +82,7 @@ add_clang_library(clangBasic
   ParsedAttrInfo.cpp
   ProfileList.cpp
   NoSanitizeList.cpp
+  SafeCXXState.cpp
   SanitizerSpecialCaseList.cpp
   Sanitizers.cpp
   Sarif.cpp

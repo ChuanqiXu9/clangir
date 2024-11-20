@@ -3086,6 +3086,11 @@ defm clangir_call_conv_lowering : BoolFOption<"clangir-call-conv-lowering",
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Transform CIR to abide to calling convetions during lowering">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option], "Ignore calling convetion during lowering">,
   BothFlags<[], [ClangOption, CC1Option], "">>;
+defm safe_cxx_dump : BoolFOption<"safe-c++-dump",
+  FrontendOpts<"SafeCXXDump">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option],
+    "Dump CIR for parsing for safe C++">,
+  NegFlag<SetFalse, [], [ClangOption, CC1Option],  "">>;
 
 def emit_cir : Flag<["-"], "emit-cir">, Visibility<[ClangOption, CC1Option]>,
   Group<Action_Group>, HelpText<"Build ASTs and then lower to ClangIR, emit the .cir file">;

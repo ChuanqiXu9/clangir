@@ -12,6 +12,7 @@ set(LIBS
   clangCIRLoweringDirectToLLVM
   MLIRAnalysis
   MLIRCIR
+  MLIRCIRAnalysis
   MLIRCIRTransforms
   MLIRDialect
   MLIRIR

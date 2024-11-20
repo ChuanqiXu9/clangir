@@ -12,6 +12,7 @@
 
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/PragmaKinds.h"
+#include "clang/Basic/SafeCXXState.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/Token.h"
@@ -411,6 +412,26 @@ private:
   Sema &Actions;
 };
 
+struct PragmaSafeCXXHandler : public PragmaHandler {
+  PragmaSafeCXXHandler(const SafeCXXState &State)
+      : PragmaHandler("SafeCXX"), State(State) {}
+  void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer,
+                    Token &FirstToken) override;
+
+private:
+  const SafeCXXState &State;
+};
+
+struct PragmaUnsafeCXXHandler : public PragmaHandler {
+  PragmaUnsafeCXXHandler(const SafeCXXState &State)
+      : PragmaHandler("UnsafeCXX"), State(State) {}
+  void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer,
+                    Token &FirstToken) override;
+
+private:
+  const SafeCXXState &State;
+};
+
 void markAsReinjectedForRelexing(llvm::MutableArrayRef<clang::Token> Toks) {
   for (auto &T : Toks)
     T.setFlag(clang::Token::IsReinjected);
@@ -568,6 +589,14 @@ void Parser::initializePragmaHandlers() {
     RISCVPragmaHandler = std::make_unique<PragmaRISCVHandler>(Actions);
     PP.AddPragmaHandler("clang", RISCVPragmaHandler.get());
   }
+
+  SafeCXXHandler = std::make_unique<PragmaSafeCXXHandler>(
+      Actions.getASTContext().getSafeCXXState());
+  PP.AddPragmaHandler("clang", SafeCXXHandler.get());
+
+  UnsafeCXXHandler = std::make_unique<PragmaUnsafeCXXHandler>(
+      Actions.getASTContext().getSafeCXXState());
+  PP.AddPragmaHandler("clang", UnsafeCXXHandler.get());
 }
 
 void Parser::resetPragmaHandlers() {
@@ -702,6 +731,12 @@ void Parser::resetPragmaHandlers() {
     PP.RemovePragmaHandler("clang", RISCVPragmaHandler.get());
     RISCVPragmaHandler.reset();
   }
+
+  PP.RemovePragmaHandler("clang", SafeCXXHandler.get());
+  SafeCXXHandler.reset();
+
+  PP.RemovePragmaHandler("clang", UnsafeCXXHandler.get());
+  UnsafeCXXHandler.reset();
 }
 
 /// Handle the annotation token produced for #pragma unused(...)
@@ -4184,4 +4219,16 @@ void PragmaRISCVHandler::HandlePragma(Preprocessor &PP,
     Actions.RISCV().DeclareRVVBuiltins = true;
   else if (II->isStr("sifive_vector"))
     Actions.RISCV().DeclareSiFiveVectorBuiltins = true;
+}
+
+void PragmaSafeCXXHandler::HandlePragma(Preprocessor &PP,
+                                        PragmaIntroducer Introducer,
+                                        Token &FirstToken) {
+  State.AddSafeCXXState(PP.getSourceManager(), FirstToken.getLocation());
+}
+
+void PragmaUnsafeCXXHandler::HandlePragma(Preprocessor &PP,
+                                          PragmaIntroducer Introducer,
+                                          Token &FirstToken) {
+  State.AddUnsafeCXXState(PP.getSourceManager(), FirstToken.getLocation());
 }

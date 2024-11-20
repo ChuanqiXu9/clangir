@@ -32,36 +32,48 @@ namespace clang {
 
     // Size of each of the diagnostic categories.
     enum {
-      DIAG_SIZE_COMMON        =  300,
-      DIAG_SIZE_DRIVER        =  400,
-      DIAG_SIZE_FRONTEND      =  200,
-      DIAG_SIZE_SERIALIZATION =  120,
-      DIAG_SIZE_LEX           =  400,
-      DIAG_SIZE_PARSE         =  700,
-      DIAG_SIZE_AST           =  300,
-      DIAG_SIZE_COMMENT       =  100,
-      DIAG_SIZE_CROSSTU       =  100,
-      DIAG_SIZE_SEMA          = 5000,
-      DIAG_SIZE_ANALYSIS      =  100,
-      DIAG_SIZE_REFACTORING   = 1000,
-      DIAG_SIZE_INSTALLAPI    =  100,
+      DIAG_SIZE_COMMON = 300,
+      DIAG_SIZE_DRIVER = 400,
+      DIAG_SIZE_FRONTEND = 200,
+      DIAG_SIZE_SERIALIZATION = 120,
+      DIAG_SIZE_LEX = 400,
+      DIAG_SIZE_PARSE = 700,
+      DIAG_SIZE_AST = 300,
+      DIAG_SIZE_COMMENT = 100,
+      DIAG_SIZE_CROSSTU = 100,
+      DIAG_SIZE_SEMA = 5000,
+      DIAG_SIZE_ANALYSIS = 100,
+      DIAG_SIZE_REFACTORING = 1000,
+      DIAG_SIZE_INSTALLAPI = 100,
+      DIAG_SIZE_SAFECXX = 100,
     };
     // Start position for diagnostics.
     enum {
-      DIAG_START_COMMON        =                          0,
-      DIAG_START_DRIVER        = DIAG_START_COMMON        + static_cast<int>(DIAG_SIZE_COMMON),
-      DIAG_START_FRONTEND      = DIAG_START_DRIVER        + static_cast<int>(DIAG_SIZE_DRIVER),
-      DIAG_START_SERIALIZATION = DIAG_START_FRONTEND      + static_cast<int>(DIAG_SIZE_FRONTEND),
-      DIAG_START_LEX           = DIAG_START_SERIALIZATION + static_cast<int>(DIAG_SIZE_SERIALIZATION),
-      DIAG_START_PARSE         = DIAG_START_LEX           + static_cast<int>(DIAG_SIZE_LEX),
-      DIAG_START_AST           = DIAG_START_PARSE         + static_cast<int>(DIAG_SIZE_PARSE),
-      DIAG_START_COMMENT       = DIAG_START_AST           + static_cast<int>(DIAG_SIZE_AST),
-      DIAG_START_CROSSTU       = DIAG_START_COMMENT       + static_cast<int>(DIAG_SIZE_COMMENT),
-      DIAG_START_SEMA          = DIAG_START_CROSSTU       + static_cast<int>(DIAG_SIZE_CROSSTU),
-      DIAG_START_ANALYSIS      = DIAG_START_SEMA          + static_cast<int>(DIAG_SIZE_SEMA),
-      DIAG_START_REFACTORING   = DIAG_START_ANALYSIS      + static_cast<int>(DIAG_SIZE_ANALYSIS),
-      DIAG_START_INSTALLAPI    = DIAG_START_REFACTORING   + static_cast<int>(DIAG_SIZE_REFACTORING),
-      DIAG_UPPER_LIMIT         = DIAG_START_INSTALLAPI    + static_cast<int>(DIAG_SIZE_INSTALLAPI)
+      DIAG_START_COMMON = 0,
+      DIAG_START_DRIVER =
+          DIAG_START_COMMON + static_cast<int>(DIAG_SIZE_COMMON),
+      DIAG_START_FRONTEND =
+          DIAG_START_DRIVER + static_cast<int>(DIAG_SIZE_DRIVER),
+      DIAG_START_SERIALIZATION =
+          DIAG_START_FRONTEND + static_cast<int>(DIAG_SIZE_FRONTEND),
+      DIAG_START_LEX =
+          DIAG_START_SERIALIZATION + static_cast<int>(DIAG_SIZE_SERIALIZATION),
+      DIAG_START_PARSE = DIAG_START_LEX + static_cast<int>(DIAG_SIZE_LEX),
+      DIAG_START_AST = DIAG_START_PARSE + static_cast<int>(DIAG_SIZE_PARSE),
+      DIAG_START_COMMENT = DIAG_START_AST + static_cast<int>(DIAG_SIZE_AST),
+      DIAG_START_CROSSTU =
+          DIAG_START_COMMENT + static_cast<int>(DIAG_SIZE_COMMENT),
+      DIAG_START_SEMA =
+          DIAG_START_CROSSTU + static_cast<int>(DIAG_SIZE_CROSSTU),
+      DIAG_START_ANALYSIS = DIAG_START_SEMA + static_cast<int>(DIAG_SIZE_SEMA),
+      DIAG_START_REFACTORING =
+          DIAG_START_ANALYSIS + static_cast<int>(DIAG_SIZE_ANALYSIS),
+      DIAG_START_INSTALLAPI =
+          DIAG_START_REFACTORING + static_cast<int>(DIAG_SIZE_REFACTORING),
+      DIAG_START_SAFECXX =
+          DIAG_START_INSTALLAPI + static_cast<int>(DIAG_SIZE_INSTALLAPI),
+      DIAG_UPPER_LIMIT =
+          DIAG_START_SAFECXX + static_cast<int>(DIAG_START_SAFECXX)
     };
 
     class CustomDiagInfo;

@@ -68,6 +68,11 @@ let cppNamespace = "::cir" in {
         /*defaultImplementation=*/ [{
           return $_attr.getAst()->getTLSKind();
         }]
+      >,
+      InterfaceMethod<"", "const clang::VarDecl *", "getDecl", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          return $_attr.getAst();
+        }]
       >
     ];
   }
@@ -83,6 +88,50 @@ let cppNamespace = "::cir" in {
       InterfaceMethod<"", "bool", "isStatic", (ins), [{}],
         /*defaultImplementation=*/ [{
           return $_attr.getAst()->isStatic();
+        }]
+      >,
+      InterfaceMethod<"", "bool", "hasNoBorrowAttr", (ins "unsigned":$argIdx), [{}],
+        /*defaultImplementation=*/ [{
+          auto *decl = mlir::dyn_cast<clang::FunctionDecl>($_attr.getAst());
+          if (!decl)
+            return false;
+
+          bool hasObjParm = false;
+
+          if (auto *method = mlir::dyn_cast<clang::CXXMethodDecl>(decl);
+                method && method->isInstance()) {
+            hasObjParm = true;
+          }
+
+          bool hasExplcitiObjParm = decl->hasCXXExplicitFunctionObjectParameter();
+          bool queryThis = false;
+          if (hasObjParm && argIdx == 0)
+            queryThis = true;
+
+          if (hasObjParm && !hasExplcitiObjParm && !queryThis)
+            argIdx--;
+
+          for (auto *redecl : decl->redecls()) {
+            if (redecl->template hasAttr<clang::SafeCXXNoBorrowToRetAttr>())
+              return true;
+
+            if (queryThis) {
+              if (redecl->template hasAttr<clang::SafeCXXThisNoBorrowToRetAttr>()) {
+                return true;
+              }
+
+              continue;
+            }
+
+            auto *parmDecl = redecl->getParamDecl(argIdx);
+            if (!parmDecl)
+              continue;
+
+            if (parmDecl->template hasAttr<clang::SafeCXXNoBorrowToRetAttr>())
+              return true;
+          }
+
+          return false;
         }]
       >
     ];
@@ -198,7 +247,15 @@ let cppNamespace = "::cir" in {
     let constBuilderCall = "$0";
   }
 
-  def ASTExprInterface : AttrInterface<"ASTExprInterface"> {}
+  def ASTExprInterface : AttrInterface<"ASTExprInterface"> {
+    let methods = [
+      InterfaceMethod<"", "clang::SourceLocation", "getSourceLocation", (ins), [{}],
+        /*defaultImplementation=*/ [{
+          return $_attr.getAst()->getExprLoc();
+        }]
+      >
+    ];
+  }
 
   def ASTCallExprInterface : AttrInterface<"ASTCallExprInterface",
       [ASTExprInterface]> {
@@ -271,7 +328,89 @@ let cppNamespace = "::cir" in {
                       [{}], /*defaultImplementation=*/ [{
           return isMemberCallTo("end");
         }]
-      >
+      >,
+      InterfaceMethod<"", "std::string", "getQualifiedCalleeName",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          auto callee = mlir::dyn_cast_or_null<clang::NamedDecl>($_attr.getAst()->getCalleeDecl());
+          if (!callee)
+            return "";
+
+          return callee->getQualifiedNameAsString();
+        }]
+      >,
+      InterfaceMethod<"", "bool", "isAllocationOrDealocationCall",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          auto callee = mlir::dyn_cast_or_null<clang::NamedDecl>($_attr.getAst()->getCalleeDecl());
+          if (!callee)
+            return false;
+          
+          auto Name = callee->getDeclName();
+
+          if (Name.getNameKind() != clang::DeclarationName::CXXOperatorName)
+            return false;
+
+          return Name.getCXXOverloadedOperator() == clang::OO_New ||
+                 Name.getCXXOverloadedOperator() == clang::OO_Delete ||
+                 Name.getCXXOverloadedOperator() == clang::OO_Array_New ||
+                 Name.getCXXOverloadedOperator() == clang::OO_Array_Delete;
+        }]
+      >,
+      InterfaceMethod<"", "bool", "isArgConstQualified",
+                      (ins "unsigned":$argIdx),
+                      [{}], /*defaultImplementation=*/ [{
+          auto arg = $_attr.getAst()->getArg(argIdx);
+          if (!arg)
+            return false;
+
+          return arg->getType().isConstQualified();
+        }]
+      >,
+      InterfaceMethod<"", "clang::QualType", "getArgType",
+                      (ins "unsigned":$argIdx),
+                      [{}], /*defaultImplementation=*/ [{
+          auto arg = $_attr.getAst()->getArg(argIdx);
+          if (!arg)
+            return clang::QualType{};
+
+          return arg->getType();
+        }]
+      >,
+      InterfaceMethod<"", "unsigned", "getNumArgs",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          return $_attr.getAst()->getNumArgs();
+        }]
+      >,
+      InterfaceMethod<"", "clang::Expr *", "getObjectArgument",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          auto *mem_call = mlir::dyn_cast<clang::CXXMemberCallExpr>($_attr.getAst());
+          if (!mem_call)
+            return nullptr;
+
+          return mem_call->getImplicitObjectArgument();
+        }]
+      >,
+      InterfaceMethod<"", "const clang::CXXConstructExpr *", "getAsConstructor",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          return mlir::dyn_cast<clang::CXXConstructExpr>($_attr.getAst());
+        }]
+      >,
+      InterfaceMethod<"", "const clang::Expr *", "getExpr",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          return $_attr.getAst();
+      }]
+      >,
+      InterfaceMethod<"", "const clang::FunctionDecl *", "getCalleeDecl",
+                      (ins),
+                      [{}], /*defaultImplementation=*/ [{
+          return $_attr.getAst()->getDirectCallee();
+      }]
+      >,
     ];
 
   }

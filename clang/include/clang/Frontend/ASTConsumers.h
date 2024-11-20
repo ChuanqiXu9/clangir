@@ -20,6 +20,7 @@
 namespace clang {
 
 class ASTConsumer;
+class CompilerInstance;
 
 // AST pretty-printer: prints out the AST in a format that is close to the
 // original C code.  The output is intended to be in a format such that
@@ -43,6 +44,10 @@ std::unique_ptr<ASTConsumer> CreateASTDeclNodeLister();
 // the AST and displays it with the graph viewer "dotty".  Also outputs
 // function declarations to stderr.
 std::unique_ptr<ASTConsumer> CreateASTViewer();
+
+/// A consumer that will make aggressive safe checks on C++ if users specified
+/// `#pragma clang Safe-C++`.
+std::unique_ptr<ASTConsumer> CreateSafeCXXConsumer(CompilerInstance &CI);
 
 } // end clang namespace
 

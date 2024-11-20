@@ -43,6 +43,29 @@ def CIRSimplify : Pass<"cir-simplify"> {
   let dependentDialects = ["cir::CIRDialect"];
 }
 
+def DeprecatedCallCheck : Pass<"cir-deprecated-call-check"> {
+  let summary = "Check we won't use raw new and delete in safe C++";
+
+  let description = [{
+    To be done.
+  }];
+
+  let constructor = "mlir::createDeprecatedCallCheckPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
+def BorrowCheck : Pass<"cir-borrow-check"> {
+  let summary = "Perform borrow checks";
+
+  let description = [{
+    To be done.
+  }];
+
+  let constructor = "mlir::createBorrowCheckPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+}
+
+
 def LifetimeCheck : Pass<"cir-lifetime-check"> {
   let summary = "Check lifetime safety and generate diagnostics";
   let description = [{

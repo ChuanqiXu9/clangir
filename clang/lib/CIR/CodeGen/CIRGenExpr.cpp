@@ -2811,6 +2811,10 @@ mlir::Value CIRGenFunction::emitAlloca(StringRef name, mlir::Type ty,
     if (currVarDecl) {
       auto alloca = cast<cir::AllocaOp>(addr.getDefiningOp());
       alloca.setAstAttr(ASTVarDeclAttr::get(&getMLIRContext(), currVarDecl));
+
+      if (isConstOrRefergConst(currVarDecl->getType()))
+        alloca.setConstOrReferencingConstAttr(
+            mlir::UnitAttr::get(&getMLIRContext()));
     }
   }
   return addr;
@@ -2820,8 +2824,14 @@ mlir::Value CIRGenFunction::emitAlloca(StringRef name, QualType ty,
                                        mlir::Location loc, CharUnits alignment,
                                        bool insertIntoFnEntryBlock,
                                        mlir::Value arraySize) {
-  return emitAlloca(name, getCIRType(ty), loc, alignment,
-                    insertIntoFnEntryBlock, arraySize);
+  auto v = emitAlloca(name, getCIRType(ty), loc, alignment,
+                      insertIntoFnEntryBlock, arraySize);
+
+  if (isConstOrRefergConst(ty))
+    cast<AllocaOp>(v.getDefiningOp())
+        .setConstOrReferencingConstAttr(mlir::UnitAttr::get(&getMLIRContext()));
+
+  return v;
 }
 
 mlir::Value CIRGenFunction::emitLoadOfScalar(LValue lvalue,

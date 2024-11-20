@@ -458,6 +458,8 @@ public:
   // pipeline.
   unsigned ClangIRAnalysisOnly : 1;
 
+  unsigned SafeCXXDump : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
 
   /// Specifies the output format of the AST.
